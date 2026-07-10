@@ -1,0 +1,83 @@
+@import './tokens.css';
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scrollbar-color: var(--stone-5) var(--stone); }
+
+body {
+  background: var(--stone);
+  background-image: radial-gradient(ellipse at top, #201d17 0%, var(--stone) 60%);
+  color: var(--parchment);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3 { font-family: var(--font-heading); color: var(--gold); font-weight: 400; }
+
+img { image-rendering: pixelated; }
+
+button { font-family: var(--font-body); }
+
+.page { max-width: 1080px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+/* Top navigation across objectives */
+.site-header {
+  background: #111;
+  border: 1px solid var(--stone-4);
+  border-top: 3px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.4rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.site-title { font-size: 1.6rem; letter-spacing: 0.02em; }
+.site-title small { font-family: var(--font-body); font-size: 0.75rem; color: var(--parchment-dim); display: block; }
+
+.obj-nav { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+
+.obj-nav a {
+  background: #111;
+  border: 1px solid var(--stone-4);
+  border-radius: var(--radius);
+  padding: 8px 18px;
+  font-size: 13px;
+  color: var(--parchment-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.obj-nav a:hover { color: var(--gold); text-decoration: none; border-color: var(--gold-dim); }
+.obj-nav a.active { background: var(--stone-2); color: var(--gold); border-color: var(--gold-dim); font-weight: 600; }
+.obj-nav a img { width: 20px; height: 20px; object-fit: contain; }
+
+/* Generic table styling (wiki-like) */
+.ds-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.ds-table th {
+  background: var(--stone-4);
+  color: var(--gold-light);
+  text-align: left;
+  padding: 6px 10px;
+  border: 1px solid var(--stone-5);
+  font-weight: 600;
+}
+.ds-table td { padding: 6px 10px; border: 1px solid var(--stone-4); background: var(--stone-2); vertical-align: top; }
+.ds-table tr:nth-child(even) td { background: #26231e; }
+.ds-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.table-scroll { overflow-x: auto; }
+
+.muted { color: var(--parchment-dim); }
+.gp { color: var(--gold-light); font-variant-numeric: tabular-nums; }
+.good { color: var(--green); }
+.bad { color: #e06060; }

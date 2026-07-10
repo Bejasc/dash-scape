@@ -1,0 +1,27 @@
+/* ── DashScape design tokens ──────────────────────────────────────────────
+   Dark OSRS stone-and-gold aesthetic. Every objective page uses these —
+   never hardcode colours in components. */
+:root {
+  --gold: #c9a84c;
+  --gold-light: #e8c96a;
+  --gold-dim: #8a6e2a;
+  --stone: #1a1814;
+  --stone-2: #22201c;
+  --stone-3: #2c2924;
+  --stone-4: #3a362e;
+  --stone-5: #4a4540;
+  --parchment: #d4c89a;
+  --parchment-dim: #9a8e6a;
+  --red: #c0392b;
+  --red-dim: #8b2a1f;
+  --green: #2ecc71;
+  --green-dim: #1a7a42;
+  --blue: #5ba3d9;
+  --blue-dim: #2d5f8a;
+  --purple: #9b59b6;
+  --radius: 6px;
+
+  --font-heading: 'IM Fell English', serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-accent: 'MedievalSharp', cursive;
+}
