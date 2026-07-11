@@ -7,13 +7,21 @@
 //   - prod: requests go direct — both APIs send CORS headers. If either API
 //           starts rejecting UA-less browser traffic, front the app with any
 //           tiny passthrough proxy that adds the header (see CLAUDE.md).
-export const PRICES_BASE = import.meta.env.DEV
-  ? '/proxy/prices'
-  : 'https://prices.runescape.wiki/api/v1/osrs'
+// Optional override: point the app at the local UA-stamping proxy
+// (tools/osrs-proxy.mjs) in any mode:  VITE_API_PROXY=http://127.0.0.1:8787
+const LOCAL_PROXY = import.meta.env.VITE_API_PROXY as string | undefined
 
-export const WOM_BASE = import.meta.env.DEV
-  ? '/proxy/wom'
-  : 'https://api.wiseoldman.net/v2'
+export const PRICES_BASE = LOCAL_PROXY
+  ? `${LOCAL_PROXY}/prices`
+  : import.meta.env.DEV
+    ? '/proxy/prices'
+    : 'https://prices.runescape.wiki/api/v1/osrs'
+
+export const WOM_BASE = LOCAL_PROXY
+  ? `${LOCAL_PROXY}/wom`
+  : import.meta.env.DEV
+    ? '/proxy/wom'
+    : 'https://api.wiseoldman.net/v2'
 
 /** Ben's RSN. Any component can track any skill for this account. */
 export const DEFAULT_RSN = 'B 3 N N O'

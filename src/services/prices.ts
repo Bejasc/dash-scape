@@ -125,6 +125,8 @@ export interface PriceLookup {
   /** price by exact item name (case-insensitive); null while loading/unknown */
   byName(name: string): number | null
   idByName(name: string): number | null
+  /** Item-name autocomplete over the GE mapping (prefix matches first). */
+  searchNames(query: string, limit?: number): string[]
 }
 
 export async function loadPriceLookup(force = false): Promise<PriceLookup> {
@@ -138,6 +140,19 @@ export async function loadPriceLookup(force = false): Promise<PriceLookup> {
     },
     idByName(name: string) {
       return mapping.get(normalizeName(name))?.id ?? null
+    },
+    searchNames(query: string, limit = 25) {
+      const q = normalizeName(query)
+      if (!q) return []
+      const starts: string[] = []
+      const contains: string[] = []
+      for (const item of mapping.values()) {
+        const n = normalizeName(item.name)
+        if (n.startsWith(q)) starts.push(item.name)
+        else if (n.includes(q)) contains.push(item.name)
+        if (starts.length >= limit) break
+      }
+      return [...starts, ...contains].slice(0, limit)
     },
   }
 }

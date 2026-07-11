@@ -47,6 +47,7 @@
   display: grid;
   grid-template-columns: repeat(4, 52px);
   grid-template-rows: repeat(7, 52px);
+  width: fit-content;
   gap: 2px;
   background: #3e3529;
   border: 2px solid var(--stone-5);
@@ -179,6 +180,7 @@ a.inv-slot:hover { outline: 1px solid var(--gold); text-decoration: none; }
 }
 .pref-picker button:first-child { border-radius: 4px 0 0 4px; }
 .pref-picker button:last-child { border-radius: 0 4px 4px 0; }
+.pref-picker button.on-unavailable { background: var(--stone-4); color: var(--parchment-dim); border-color: var(--stone-5); }
 .pref-picker button.on-blocked { background: #3a1e1e; color: #e06060; border-color: #5a2a2a; }
 .pref-picker button.on-neutral { background: var(--stone-4); color: var(--parchment); border-color: var(--stone-5); }
 .pref-picker button.on-preferred { background: #1e3a1e; color: #60c060; border-color: #2a5a2a; }

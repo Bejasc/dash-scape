@@ -14,10 +14,36 @@ import { gearSetups, inventoryLegend } from './gearData'
 import { strategies, type LoadoutId } from './strategies'
 import { duradel, duradelTasks, type DuradelTask } from './tasks'
 
-type Pref = 'blocked' | 'neutral' | 'preferred'
+type Pref = 'unavailable' | 'blocked' | 'neutral' | 'preferred'
 type Filter = 'all' | Pref
 
-const PREF_LABEL: Record<Pref, string> = { blocked: 'Not available', neutral: 'Neutral', preferred: 'Preferred' }
+const PREF_LABEL: Record<Pref, string> = {
+  unavailable: 'Not available',
+  blocked: 'Blocked',
+  neutral: 'Neutral',
+  preferred: 'Preferred',
+}
+const PREF_ICON: Record<Pref, string> = { unavailable: '✕', blocked: '⛔', neutral: '—', preferred: '★' }
+const PREF_TIP: Record<Pref, string> = {
+  unavailable: "Can't be assigned — missing unlock/quest/level. Excluded from your pool.",
+  blocked: 'Blocked at Duradel (100 points). Excluded from your pool.',
+  neutral: 'Default',
+  preferred: 'Mark preferred',
+}
+
+/** v1 stored 'blocked' meaning "not available"; v2 splits the two states. */
+function migratePrefs(): Record<string, Pref> {
+  try {
+    const v1 = localStorage.getItem('dashscape.slayer.prefs.v1')
+    if (!v1) return {}
+    const old = JSON.parse(v1) as Record<string, string>
+    const out: Record<string, Pref> = {}
+    for (const [k, v] of Object.entries(old)) out[k] = v === 'blocked' ? 'unavailable' : (v as Pref)
+    return out
+  } catch {
+    return {}
+  }
+}
 const LOADOUT_LABEL: Record<LoadoutId, string> = {
   melee: 'Melee setup',
   blowpipe: 'Blowpipe setup',
@@ -42,14 +68,9 @@ const slayerMilestones = [
 function PrefPicker({ value, onChange }: { value: Pref; onChange: (p: Pref) => void }) {
   return (
     <span className="pref-picker">
-      {(['blocked', 'neutral', 'preferred'] as const).map((p) => (
-        <button
-          key={p}
-          className={value === p ? `on-${p}` : ''}
-          onClick={() => onChange(p)}
-          title={p === 'blocked' ? 'Mark not available / blocked — filtered out of your pool' : p === 'preferred' ? 'Mark preferred' : 'Default'}
-        >
-          {p === 'blocked' ? '✕' : p === 'preferred' ? '★' : '—'} {PREF_LABEL[p]}
+      {(['unavailable', 'blocked', 'neutral', 'preferred'] as const).map((p) => (
+        <button key={p} className={value === p ? `on-${p}` : ''} onClick={() => onChange(p)} title={PREF_TIP[p]}>
+          {PREF_ICON[p]} {PREF_LABEL[p]}
         </button>
       ))}
     </span>
@@ -59,13 +80,14 @@ function PrefPicker({ value, onChange }: { value: Pref; onChange: (p: Pref) => v
 function TaskCard({ task, pref, setPref }: { task: DuradelTask; pref: Pref; setPref: (p: Pref) => void }) {
   const strat = strategies[task.name]
   const [open, setOpen] = useState(false)
+  const excluded = pref === 'blocked' || pref === 'unavailable'
   return (
     <div
       style={{
-        background: pref === 'blocked' ? '#191412' : '#161616',
-        opacity: pref === 'blocked' ? 0.65 : 1,
+        background: excluded ? '#191412' : '#161616',
+        opacity: excluded ? 0.65 : 1,
         border: '1px solid #2e2a1e',
-        borderLeft: `3px solid ${pref === 'preferred' ? 'var(--green-dim)' : pref === 'blocked' ? 'var(--red-dim)' : 'var(--gold)'}`,
+        borderLeft: `3px solid ${pref === 'preferred' ? 'var(--green-dim)' : pref === 'blocked' ? 'var(--red-dim)' : pref === 'unavailable' ? 'var(--stone-5)' : 'var(--gold)'}`,
         borderRadius: 'var(--radius)',
         padding: '0.9rem 1.1rem',
         marginBottom: '0.7rem',
@@ -178,18 +200,24 @@ function TaskCard({ task, pref, setPref }: { task: DuradelTask; pref: Pref; setP
 export function SlayerPage() {
   const wom = useWiseOldMan(DEFAULT_RSN)
   const slayerXp = wom.skill('slayer')?.experience ?? null
-  const [prefs, setPrefs] = useLocalStorage<Record<string, Pref>>('dashscape.slayer.prefs.v1', {})
+  const [prefs, setPrefs] = useLocalStorage<Record<string, Pref>>('dashscape.slayer.prefs.v2', migratePrefs())
   const [filter, setFilter] = useState<Filter>('all')
   const [setupId, setSetupId] = useState(gearSetups[0].id)
 
   const counts = useMemo(() => {
-    const c: Record<Pref, number> = { blocked: 0, neutral: 0, preferred: 0 }
+    const c: Record<Pref, number> = { unavailable: 0, blocked: 0, neutral: 0, preferred: 0 }
     for (const t of duradelTasks) c[prefs[t.name] ?? 'neutral']++
     return c
   }, [prefs])
 
   const activeWeight = useMemo(
-    () => duradelTasks.filter((t) => (prefs[t.name] ?? 'neutral') !== 'blocked').reduce((s, t) => s + t.weight, 0),
+    () =>
+      duradelTasks
+        .filter((t) => {
+          const p = prefs[t.name] ?? 'neutral'
+          return p !== 'blocked' && p !== 'unavailable'
+        })
+        .reduce((s, t) => s + t.weight, 0),
     [prefs],
   )
 
@@ -257,11 +285,13 @@ export function SlayerPage() {
       <SectionCard title="Duradel task list" icon="Duradel chathead">
         <p className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>
           All {duradelTasks.length} assignment categories, sorted by assignment weight. Mark tasks{' '}
-          <b style={{ color: '#e06060' }}>Not available</b> (can't get / blocked / missing unlock),{' '}
-          <b>Neutral</b>, or <b style={{ color: '#60c060' }}>Preferred</b> — marks persist in your browser.
+          <b className="muted">Not available</b> (can't be assigned — missing unlock/quest/level),{' '}
+          <b style={{ color: '#e06060' }}>Blocked</b> (100 points spent at Duradel), <b>Neutral</b>, or{' '}
+          <b style={{ color: '#60c060' }}>Preferred</b> — marks persist in your browser. Both Not available and
+          Blocked are excluded from your assignment pool.
         </p>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-          {(['all', 'preferred', 'neutral', 'blocked'] as const).map((f) => (
+          {(['all', 'preferred', 'neutral', 'blocked', 'unavailable'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -276,8 +306,8 @@ export function SlayerPage() {
             </button>
           ))}
           <span className="muted" style={{ fontSize: 11.5, marginLeft: 'auto' }}>
-            Weight in your pool (excl. not-available): <b style={{ color: 'var(--gold)' }}>{activeWeight}</b> — a task's
-            assignment odds ≈ weight ÷ pool
+            Weight in your pool (excl. blocked + not-available): <b style={{ color: 'var(--gold)' }}>{activeWeight}</b>{' '}
+            — a task's assignment odds ≈ weight ÷ pool
           </span>
         </div>
         {visible.map((t) => (
@@ -296,7 +326,7 @@ export function SlayerPage() {
             <thead><tr><th>Cost</th><th>Unlock</th><th>Why</th></tr></thead>
             <tbody>
               <tr><td className="num">150</td><td><a href={wikiUrl('Slayer Rewards')} target="_blank" rel="noreferrer">Bigger and Badder</a></td><td>Superior spawns — bonus xp and Imbued heart chance. First buy.</td></tr>
-              <tr><td className="num">100 ea</td><td>Task blocks</td><td>Block your worst high-weight tasks — use your "Not available" marks above as the shortlist (Metal dragons at weight 14 is the classic first block).</td></tr>
+              <tr><td className="num">100 ea</td><td>Task blocks</td><td>Block your worst high-weight tasks, then mark them ⛔ Blocked above so your pool weight stays accurate (Metal dragons at weight 14 is the classic first block).</td></tr>
               <tr><td className="num">200</td><td>Like a Boss</td><td>Boss tasks: +5,000 bonus xp each, helm active on bosses, best gp/task at Duradel.</td></tr>
               <tr><td className="num">750</td><td><ItemLink name="Herb sack" /></td><td>Needs 58 Herblore. Frees loot space on spectres/nechs/kurask/dust devils.</td></tr>
               <tr><td className="num">100-200</td><td>Extensions</td><td>Extend the great tasks you marked Preferred (Nechryael, Dust devils, Smoke devils, Bloodveld, Abyssal demons).</td></tr>

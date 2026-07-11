@@ -51,8 +51,20 @@ description: How DashScape's price service, Wise Old Man hook, and item icon res
 - `wikiUrl(page)` for hyperlinks; `ItemLink` combines link + icon + optional
   live price badge and is the only sanctioned way to render an item mention.
 
+## Local toolkit — hard-verified data (preferred)
+
+- `npm run wiki -- "<Page>"` (`tools/wiki.mjs`) fetches a wiki page's
+  wikitext — `{{Infobox ...}}` blocks carry exact levels/materials/xp. Flags:
+  `--search`, `--html`, `--price "<item>"`, `--wom "<rsn>"`. **Always prefer
+  this over web search for game facts** when the network allows direct fetch.
+- `npm run proxy` (`tools/osrs-proxy.mjs`) runs a local UA-stamping
+  passthrough on :8787 for `/prices/*`, `/wom/*`, `/wiki/*` with CORS. The
+  app consumes it via `VITE_API_PROXY=http://127.0.0.1:8787` in any mode;
+  Claude can `curl` through it for anything the CLI doesn't cover.
+
 ## Sandbox note
 
-In Claude Code cloud sessions, direct egress to these APIs may be blocked by
-network policy (403 CONNECT). That only affects the sandbox — the app runs in
-the user's browser. For research, WebSearch still surfaces wiki content.
+In Claude Code cloud sessions, egress to these hosts may be blocked by
+network policy (403 CONNECT) — then, and only then, fall back to WebSearch
+and mark unconfirmable numbers `unverified: true`. On Ben's machine the
+toolkit above works directly; the app itself always runs in his browser.

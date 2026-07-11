@@ -1,6 +1,31 @@
 # HANDOVER — DashScape build session (July 2026)
 
-## What was built
+## Session 2 additions
+
+- **Slayer: four preference states** — Not available (can't be assigned) and
+  Blocked (100 pts spent) are now distinct; both excluded from the pool
+  weight. Old v1 marks migrate automatically (v1 "blocked" → "Not available").
+- **Local data toolkit** (`tools/`): `npm run proxy` = UA-stamping CORS
+  passthrough on :8787 for `/prices`, `/wom`, `/wiki` (app can target it via
+  `VITE_API_PROXY`); `npm run wiki -- "<Page>"` fetches real wikitext
+  (+ `--search/--html/--price/--wom`). CLAUDE.md + skills now direct local
+  Claude sessions to these for hard-verified data instead of web search.
+  Written for Ben's machine — could NOT be live-tested from this sandbox
+  (egress blocked); both are plain Node 18 `fetch`, no dependencies.
+- **Max House goal planner** — pick any milestone (or custom level) + method:
+  exact planks to buy, actions, butler trips/wages, total live-GE cost,
+  time estimate, all from live WOM xp. Verified against mocked APIs
+  (756k xp → Occult altar = 32,790 mahogany planks / 68.4M / ~5.5h ✓).
+- **Goals & Notes objective** — checkbox goals with drag-and-drop reorder and
+  per-goal notes; named + tagged notes authored in-page with tag filter and
+  full-text search (matches embedded item names too); both goals and notes
+  can embed inventory (click-to-paint, 4×7) and equipment loadout blocks with
+  item autocomplete from the GE mapping; each goal has a "⚒ Claude prompt"
+  button that copies a skills-aligned brief for turning the goal into a full
+  objective (wire-up to a live Claude session is future work — see backlog).
+  All localStorage (`dashscape.goals.v1`, `dashscape.notes.v1`).
+
+## What was built (session 1)
 
 A Vite + React + TypeScript objective dashboard with two complete objectives,
 rendered through a shared component system (see `CLAUDE.md` for architecture).
@@ -117,3 +142,9 @@ notes; conflicting/unconfirmable search snippets):
    could scale down).
 7. Optional: swap `Coins` fixed rows in cost tables for a dedicated fee row
    type; add Konar/Nieve master tabs to the Slayer objective.
+8. Wire the Goals page "⚒ Claude prompt" button beyond the clipboard — e.g.
+   POST into a Claude Code session/automation so a goal becomes a PR that
+   adds the generated objective. The prompt text lives in
+   `src/objectives/goals/types.ts` (`buildClaudePrompt`).
+9. Goals/notes export-import (JSON download/upload) so localStorage isn't the
+   only copy.

@@ -35,8 +35,10 @@ build a bespoke page with its own styling or item rendering.
 
 3. **Wiki verification workflow (mandatory)**
    - Verify every gameplay number (levels, materials, weights, xp rates)
-     against oldschool.runescape.wiki while authoring. In sandboxed sessions
-     direct fetch may be blocked — WebSearch surfaces wiki page content.
+     against oldschool.runescape.wiki while authoring — fetch the real page
+     with `npm run wiki -- "<Page>"` (wikitext infoboxes are ground truth;
+     see `tools/wiki.mjs` for --search/--html/--price/--wom). Only fall back
+     to WebSearch in sandboxed sessions where egress is blocked.
    - Keep a `sources: string[]` (wiki URLs) export in `data.ts` and render a
      Sources section at the bottom of the page.
    - Anything you could not verify: mark `unverified: true` in data and

@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react'
 import { CostTable } from '../../components/CostTable'
 import { InventoryGrid } from '../../components/InventoryGrid'
 import { ItemLink } from '../../components/ItemLink'
@@ -6,9 +7,10 @@ import { ObjectiveLayout } from '../../components/ObjectiveLayout'
 import { usePricesContext } from '../../components/PricesProvider'
 import { Note, SectionCard, SubHead, Tag } from '../../components/SectionCard'
 import { SkillProgress } from '../../components/SkillProgress'
+import { useLocalStorage } from '../../hooks/useLocalStorage'
 import { useWiseOldMan } from '../../hooks/useWiseOldMan'
 import { formatGp, formatHours, formatNum, wikiUrl } from '../../lib/format'
-import { XP_99 } from '../../lib/xp'
+import { levelForXp, xpForLevel, XP_99 } from '../../lib/xp'
 import { DEFAULT_RSN } from '../../services/config'
 import {
   demonButler,
@@ -29,6 +31,135 @@ function wagePerXp(m: TrainingMethod): number {
   const tripPlanks = Math.floor(demonButler.capacity / m.planksPerAction) * m.planksPerAction
   const xpPerPlank = m.xpPerAction / m.planksPerAction
   return demonButler.wagePerTrip / (tripPlanks * xpPerPlank)
+}
+
+/** "Plan a goal" — pick a target build/level and a method; get the exact
+ *  shopping list from live xp: planks, actions, butler trips, cost, hours. */
+function GoalPlanner({ conXp }: { conXp: number | null }) {
+  const prices = usePricesContext()
+  const goalOptions = useMemo(() => {
+    const fromMilestones = milestones.map((m) => ({ key: `${m.level}:${m.title}`, label: `${m.title} (level ${m.level})`, level: m.level }))
+    return fromMilestones
+  }, [])
+  const [goalKey, setGoalKey] = useLocalStorage<string>('dashscape.maxhouse.goal.v1', '90:Ornate rejuvenation pool · OCCULT ALTAR')
+  const [methodName, setMethodName] = useLocalStorage<string>('dashscape.maxhouse.goalmethod.v1', 'Mahogany tables')
+  const [customLevel, setCustomLevel] = useLocalStorage<number>('dashscape.maxhouse.goalcustom.v1', 99)
+
+  const selected = goalOptions.find((g) => g.key === goalKey)
+  const targetLevel = goalKey === 'custom' ? Math.max(2, Math.min(99, customLevel)) : (selected?.level ?? 99)
+  const method = trainingMethods.find((m) => m.name === methodName) ?? trainingMethods[0]
+
+  if (conXp === null) {
+    return <p className="muted" style={{ fontSize: 12.5 }}>Waiting for live xp from Wise Old Man…</p>
+  }
+
+  const currentLevel = levelForXp(conXp)
+  const targetXp = xpForLevel(targetLevel)
+  const xpNeeded = Math.max(0, targetXp - conXp)
+  const actions = Math.ceil(xpNeeded / method.xpPerAction)
+  const planks = Math.ceil(actions * method.planksPerAction)
+  const plankPrice = prices?.price(method.plankItem) ?? null
+  const plankCost = plankPrice !== null ? planks * plankPrice : null
+  const tripPlanks = Math.max(1, Math.floor(demonButler.capacity / method.planksPerAction) * Math.max(1, Math.floor(method.planksPerAction)))
+  const trips = method.usesButler ? Math.ceil(planks / tripPlanks) : 0
+  const wages = trips * demonButler.wagePerTrip
+  const total = plankCost !== null ? plankCost + wages : null
+  const hoursLow = xpNeeded / method.xpPerHourHigh
+  const hoursHigh = xpNeeded / method.xpPerHourLow
+  const methodTooLow = currentLevel < method.level
+
+  const selStyle: React.CSSProperties = {
+    background: '#111', color: 'var(--parchment)', border: '1px solid var(--stone-5)',
+    borderRadius: 4, padding: '6px 10px', fontSize: 13, fontFamily: 'var(--font-body)',
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+        <label style={{ fontSize: 12.5 }}>
+          <span className="muted">Goal&nbsp;</span>
+          <select value={goalKey} onChange={(e) => setGoalKey(e.target.value)} style={selStyle}>
+            {goalOptions.map((g) => (
+              <option key={g.key} value={g.key}>{g.label}</option>
+            ))}
+            <option value="custom">Custom level…</option>
+          </select>
+        </label>
+        {goalKey === 'custom' && (
+          <label style={{ fontSize: 12.5 }}>
+            <span className="muted">Level&nbsp;</span>
+            <input
+              type="number" min={2} max={99} value={customLevel}
+              onChange={(e) => setCustomLevel(Number(e.target.value))}
+              style={{ ...selStyle, width: 70 }}
+            />
+          </label>
+        )}
+        <label style={{ fontSize: 12.5 }}>
+          <span className="muted">Method&nbsp;</span>
+          <select value={methodName} onChange={(e) => setMethodName(e.target.value)} style={selStyle}>
+            {trainingMethods.map((m) => (
+              <option key={m.name} value={m.name}>{m.name} (lvl {m.level}+)</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {xpNeeded === 0 ? (
+        <Note kind="tip"><strong>Already there!</strong> You're level {currentLevel} — {targetLevel} is behind you.</Note>
+      ) : (
+        <>
+          <div className="table-scroll">
+            <table className="ds-table">
+              <tbody>
+                <tr>
+                  <th style={{ width: 220 }}>From → to</th>
+                  <td>Level <b>{currentLevel}</b> ({formatNum(conXp)} xp) → level <b>{targetLevel}</b> ({formatNum(targetXp)} xp)</td>
+                </tr>
+                <tr><th>XP needed</th><td className="gp">{formatNum(xpNeeded)}</td></tr>
+                <tr>
+                  <th>Actions</th>
+                  <td><b>{formatNum(actions)}</b> × {method.name.toLowerCase().replace(/s$/, '')} builds ({formatNum(method.xpPerAction)} xp each)</td>
+                </tr>
+                <tr>
+                  <th>Planks to buy</th>
+                  <td>
+                    <ItemLink name={method.plankItem} showPrice /> × <b>{formatNum(planks)}</b>
+                    {plankCost !== null && <> = <span className="gp">{formatGp(plankCost)}</span></>}
+                    {method.extraCostNote && <span className="muted"> (+ {method.extraCostNote.toLowerCase()})</span>}
+                  </td>
+                </tr>
+                {method.usesButler && (
+                  <tr>
+                    <th>Butler wages</th>
+                    <td>{formatNum(trips)} trips × {formatNum(demonButler.wagePerTrip)} gp = <span className="gp">{formatGp(wages)}</span></td>
+                  </tr>
+                )}
+                <tr>
+                  <th>Total cost</th>
+                  <td className="gp" style={{ fontSize: 14, fontWeight: 700 }}>{total !== null ? formatGp(total) : '— (prices offline)'}</td>
+                </tr>
+                <tr>
+                  <th>Estimated time</th>
+                  <td><b>{formatHours(hoursLow)}–{formatHours(hoursHigh)}</b> at {formatGp(method.xpPerHourLow)}–{formatGp(method.xpPerHourHigh)} xp/hr</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          {methodTooLow && (
+            <Note kind="warn">
+              <strong>Heads up:</strong> {method.name} needs level {method.level} — you're {currentLevel}. Train to it
+              with an earlier method first (the maths above assumes {method.name} the whole way).
+            </Note>
+          )}
+          <Note kind="tip">
+            Buy planks a chunk at a time on volatile days — {formatNum(planks)} planks will move the GE mid-price.
+            This covers training xp only; the goal build's own materials are costed in "The dream house" below.
+          </Note>
+        </>
+      )}
+    </div>
+  )
 }
 
 export function MaxHousePage() {
@@ -53,6 +184,15 @@ export function MaxHousePage() {
             unlocks on the way.
           </Note>
         )}
+      </SectionCard>
+
+      {/* ── Goal planner ── */}
+      <SectionCard title="Plan a goal — exact shopping list from your live xp" icon="Crystal saw">
+        <p className="muted" style={{ fontSize: 12.5, marginBottom: 10 }}>
+          Pick a target (e.g. Occult altar at 90) and a training method — get the exact planks to buy, actions to
+          make, total cost at live GE prices, and time estimate. Recomputes whenever your Wise Old Man xp updates.
+        </p>
+        <GoalPlanner conXp={conXp} />
       </SectionCard>
 
       {/* ── Milestones ── */}

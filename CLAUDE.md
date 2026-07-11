@@ -92,9 +92,30 @@ register it in `registry.tsx`. See `.claude/skills/osrs-objective-builder/`.
 material counts, task weights, prices. Every gameplay fact in a `data.ts` must
 be verified against the OSRS Wiki at authoring time, and each data file keeps
 a `sources` list of the wiki pages used. Facts that could not be verified are
-flagged in the UI and in `HANDOVER.md`. When editing game data, re-verify
-against the wiki (WebSearch reaches wiki content even when direct fetch is
-blocked).
+flagged in the UI and in `HANDOVER.md`.
+
+**How to verify — use `tools/wiki.mjs`, not web search.** On a machine with
+open network (Ben's local Claude Code sessions), fetch the actual wiki page:
+
+```bash
+npm run wiki -- "Occult altar"              # wikitext — infoboxes carry exact data
+npm run wiki -- --search "jewellery box"    # find page titles
+npm run wiki -- --html "Duradel"            # rendered tables
+npm run wiki -- --price "Mahogany plank"    # live GE price
+npm run wiki -- --wom "b 3 n n o"           # live player stats
+```
+
+Wikitext `{{Infobox ...}}` blocks and tables are the ground truth. Only fall
+back to WebSearch when direct fetch is impossible (sandboxed cloud sessions
+with egress blocked) — and then mark anything uncertain `unverified: true`.
+
+### Local data proxy (tools/osrs-proxy.mjs)
+
+`npm run proxy` starts a UA-stamping passthrough on `http://127.0.0.1:8787`
+for **everything**: `/prices/*`, `/wom/*`, `/wiki/*` (api.php, pages, images),
+with CORS enabled. Point the app at it with
+`VITE_API_PROXY=http://127.0.0.1:8787` (works for dev and prod builds — also
+the answer if the public APIs ever block browser traffic).
 
 ## Design system
 
